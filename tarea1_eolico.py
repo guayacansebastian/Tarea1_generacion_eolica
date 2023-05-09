@@ -24,10 +24,10 @@ class Eolico():
         self.prom_total_hora = []
         self.carga_datos()     
         self.extrapolar()
-        #self.velocidad_promedio()
-        #self.patron_anual()
-        #self.param_weibull()
-        #self.distr_weibull()
+        self.velocidad_promedio()
+        self.patron_anual()
+        self.param_weibull()
+        self.distr_weibull()
         self.rosa_vientos()
 
 
@@ -41,7 +41,8 @@ class Eolico():
                 "HUMEDAD":[],
                 "PRESION":[],
                 "SPEED60":[],
-                "DIR98":[]
+                "DIR98":[],
+                "DIR_DEG":[]
             }
         i = 0
         while len(linea[0]) > 0:
@@ -55,7 +56,12 @@ class Eolico():
         linea = self.sitio.readline().split(",")
         while len(linea[0]) > 0:
             self.datos["SPEED60"].append(float(linea[5]))
-            self.datos["DIR98"].append(np.deg2rad(float(linea[6].replace("\n","")) ))        
+            dir = (float(linea[6].replace("\n",""))*np.pi / 180)
+            self.datos["DIR98"].append(round(dir,1) )        
+            self.datos["DIR_DEG"].append(float(linea[6].replace("\n","")))        
+            #self.datos["DIR98"].append(np.deg2rad(float(linea[6].replace("\n","")) ))        
+            
+
             linea = self.sitio.readline().split(",")
 
 
@@ -103,7 +109,7 @@ class Eolico():
             mes = mes /10
             self.prom_total_mes.append(mes)
         plt.figure(2)
-        plt.plot( self.prom_total_mes,"o" ,label='Promedio 10 años')
+        plt.plot( self.prom_total_mes,"o-" ,label='Promedio 10 años')
         plt.plot( vel_prom[0],label='2008')
         plt.plot( vel_prom[1],label='2009')
         plt.plot( vel_prom[2],label='2010')
@@ -150,7 +156,7 @@ class Eolico():
             hora = hora /10
             self.prom_total_hora.append(hora)
         plt.figure(3)
-        plt.plot( self.prom_total_hora,"o" ,label='Promedio 10 años')
+        plt.plot( self.prom_total_hora,"o-" ,label='Promedio 10 años')
         plt.plot( vel_prom[0],label='2008')
         plt.plot( vel_prom[1],label='2009')
         plt.plot( vel_prom[2],label='2010')
@@ -205,30 +211,43 @@ class Eolico():
         axs[1].legend(loc='upper right')
         axs[1].set_ylabel("Número de horas - total")
         axs[1].set_xlabel("Velocidad viento (m/s) ")
-        plt.show()
+        
 
 
     def rosa_vientos(self):
-        theta = []
+        theta = {}
         r = []
-        n = []
+        angs = []
         for i in range(len (self.vel_int)):
             dir = self.datos["DIR98"][i]
             if dir not in theta:
-                r[i]=self.vel_int[i]
-                n[i]=1
+                ans = [self.vel_int[i],1]
+                theta[dir]= ans
+                angs.append(dir)
             else:
-                r[i]+=self.vel_int[i]
-                n[i]+=1
-        for i in range(len(r)):
-            r[i] = r[i]/n[i]
-        theta = self.datost[""]
+                theta[dir][0]+= self.vel_int[i]
+                theta[dir][1]+= 1
+                
+        
+        angs.sort()
+            
+
+        for th in angs:
+            pr = theta[th][0] / theta[th][1]
+            r.append(pr)
+        print (angs)
+        #print (f"angs {angs} ")
 
         fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-        ax.plot(theta, r)
-        plt.title("Rosa de los vientos")
-        ax.set_title("Pretty polar error bars")
+        ax.plot(angs, r)
+        ax.set_rticks( np.arange(0, 10, 1.5))  # Less radial ticks
+        ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
+        ax.grid(True)
+        ax.set_title("Velocidad promedio por dirección", va='bottom')
         plt.show()
+
+        
+
 
 
 def main(args=None):
@@ -237,3 +256,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
