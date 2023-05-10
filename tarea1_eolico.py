@@ -3,6 +3,12 @@ import pandas
 import numpy as np
 import pandas as pnd
 import seaborn as sbn
+import pandas as pd
+import numpy as np
+from matplotlib import pyplot as plt
+import matplotlib.cm as cm
+from math import pi
+from windrose import WindroseAxes
 sbn.set(rc={'figure.figsize':(10, 5)})
 
 
@@ -56,9 +62,13 @@ class Eolico():
         linea = self.sitio.readline().split(",")
         while len(linea[0]) > 0:
             self.datos["SPEED60"].append(float(linea[5]))
-            dir = (float(linea[6].replace("\n",""))*np.pi / 180)
-            self.datos["DIR98"].append(round(dir,1) )        
-            self.datos["DIR_DEG"].append(float(linea[6].replace("\n","")))        
+            dir = ((float(linea[6].replace("\n","")))*np.pi / 180)
+            
+            self.datos["DIR98"].append(round(dir,2) ) 
+            deg = np.rad2deg(dir) - 90    
+            if deg <0:
+                deg += 360     
+            self.datos["DIR_DEG"].append(deg)        
             #self.datos["DIR98"].append(np.deg2rad(float(linea[6].replace("\n","")) ))        
             
 
@@ -189,17 +199,21 @@ class Eolico():
 
         
     def distr_weibull(self):
-        x_hist = np.arange(0, 10, 0.2)
+        x_hist = np.arange(0, 10, 0.5)
+        gen = [0,0,0,0,12.5, 25, 160, 297, 480, 654, 950, 1180, 1500, 1871, 2350, 2768, 3250, 3717, 4150, 4600]
+        enr=[]
         y_hist = []
         for i in range(len (self.datos["SPEED60"])):
             vel = self.datos["SPEED60"][i]
             for j in range(len (x_hist)-1):
                 if vel < x_hist[j+1] and vel > x_hist[j]:
                     y_hist.append(x_hist[j])
-        x = np.arange(0, 10, 0.01)
+        x = np.arange(0, 10, 0.5)
         weibull = []
         for i in range(len(x)):
             w = ((self.k/self.lammbda)*(x[i]/self.lammbda)**(self.k-1) )*(np.exp(-(x[i]/self.lammbda)**(self.k)))
+            energia = gen[i]* w*87667
+            enr.append(energia)
             weibull.append(w*100)
         fig, axs = plt.subplots(2)
         fig.suptitle('Velocidad del viento')     
@@ -211,6 +225,20 @@ class Eolico():
         axs[1].legend(loc='upper right')
         axs[1].set_ylabel("Número de horas - total")
         axs[1].set_xlabel("Velocidad viento (m/s) ")
+
+        fig2, axs2 = plt.subplots(2)
+        fig2.suptitle('Velocidad del viento')     
+        axs2[0].plot( x,gen,"tab:red",label = "Curva de potencia")
+        axs2[0].legend(loc='upper right')
+        axs2[0].set_ylabel("kW")
+        axs2[0].set_xlabel("Velocidad viento (m/s) ")
+        axs2[1].plot( x,enr,"tab:blue",label = "Curva de energía")
+        axs2[1].legend(loc='upper right')
+        axs2[1].set_ylabel("kWh")
+        axs2[1].set_xlabel("Velocidad viento (m/s) ")
+        
+
+
         
 
 
@@ -219,7 +247,7 @@ class Eolico():
         r = []
         angs = []
         for i in range(len (self.vel_int)):
-            dir = self.datos["DIR98"][i]
+            dir = self.datos["DIR_DEG"][i]
             if dir not in theta:
                 ans = [self.vel_int[i],1]
                 theta[dir]= ans
@@ -235,16 +263,22 @@ class Eolico():
         for th in angs:
             pr = theta[th][0] / theta[th][1]
             r.append(pr)
-        print (angs)
+        #print (angs)
+        
         #print (f"angs {angs} ")
 
-        fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-        ax.plot(angs, r)
-        ax.set_rticks( np.arange(0, 10, 1.5))  # Less radial ticks
-        ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
+
+        
+        ax = WindroseAxes.from_ax()
+        #ax.bar(angs, r, normed=False, opening=0.8, edgecolor='white')
+        ax.contourf(angs, r,bins=10, cmap=cm.hot)
+        ax.set_legend()
+        #fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
         ax.grid(True)
         ax.set_title("Velocidad promedio por dirección", va='bottom')
         plt.show()
+
+        
 
         
 
